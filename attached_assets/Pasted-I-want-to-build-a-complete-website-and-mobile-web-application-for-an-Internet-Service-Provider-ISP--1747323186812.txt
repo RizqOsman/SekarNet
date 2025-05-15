@@ -1,0 +1,82 @@
+I want to build a complete website and mobile web application for an Internet Service Provider (ISP) named "SEKAR NET" using React.js for the frontend and FastAPI for the backend. I’m working on Replit, so the structure and code should be suitable for Replit-based deployment.
+
+🎯 The platform should serve three types of users:
+1. Customers
+2. Field Technicians
+3. Admins (Web Dashboard)
+
+💡 General Requirements:
+- Create a responsive and modern UI (Tailwind CSS or ShadCN components).
+- Use modular, scalable architecture.
+- Separate the frontend and backend folders.
+- Provide reusable UI components.
+- Provide dummy data for testing.
+
+---
+
+✅ Must-Have Features:
+
+1. **Authentication & User Profile**
+   - User registration, login, password reset
+   - OTP/email verification (optional stub)
+   - JWT authentication (access + refresh tokens)
+   - Profile management (name, address, ID, etc.)
+
+2. **Internet Subscription Management**
+   - Browse available packages (speed, price, quota)
+   - Request new installation
+   - Track installation status
+   - View current active package
+
+3. **Billing & Payment**
+   - Monthly billing with due dates
+   - Payment history
+   - Upload transfer proof (image/pdf)
+   - Optional: QRIS or virtual account payment gateway integration
+   - Downloadable invoice (PDF)
+
+4. **Report & Troubleshooting**
+   - Submit service issues via form
+   - Track resolution progress
+   - Attach photos/videos
+   - View history of submitted complaints
+
+5. **Notifications**
+   - Real-time push/email notifications
+   - Status updates (installations, payments, outages)
+   - Broadcast messages (promo, scheduled maintenance, outages)
+
+6. **Admin Panel (Web only)**
+   - User/customer management
+   - View and manage all installation & complaint requests
+   - Assign jobs to technicians
+   - Track all payments
+   - Send broadcast announcements
+
+7. **Technician Portal (Mobile or Mobile Web App)**
+   - View assigned jobs for today
+   - Google Maps integration for navigation
+   - Upload job completion photo/status
+   - Update complaint resolution status
+
+8. **Bonus Features**
+   - Internet speed test integration
+   - Coverage map using Google Maps API
+   - Referral system (optional)
+   - Reports exportable to Excel or PDF
+
+---
+
+🛠 Tech Stack:
+- **Frontend:** React.js + Tailwind CSS + Axios + React Router DOM
+- **Backend:** FastAPI + SQLAlchemy + PostgreSQL (SQLite for dev)
+- **Authentication:** JWT
+- **Notifications:** Push Notification API or SMTP (for email)
+- **Storage:** Local or Cloudinary for images
+- **Invoice PDF:** xhtml2pdf or WeasyPrint
+- **Deployment:** Manual (via Replit) or Uvicorn + Gunicorn
+
+---
+
+📦 Project Structure:
+
