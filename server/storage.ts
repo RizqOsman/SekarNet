@@ -1,15 +1,15 @@
-import {
-  users, User, InsertUser,
-  packages, Package, InsertPackage,
-  subscriptions, Subscription, InsertSubscription,
-  installationRequests, InstallationRequest, InsertInstallationRequest,
-  bills, Bill, InsertBill,
-  supportTickets, SupportTicket, InsertSupportTicket,
-  notifications, Notification, InsertNotification,
-  technicianJobs, TechnicianJob, InsertTechnicianJob,
-  userActivities, UserActivity, InsertUserActivity,
-  connectionStats, ConnectionStat, InsertConnectionStat
-} from "@shared/schema";
+import { users, type User, type InsertUser } from "@shared/schema";
+import { packages, type Package, type InsertPackage } from "@shared/schema";
+import { subscriptions, type Subscription, type InsertSubscription } from "@shared/schema";
+import { installationRequests, type InstallationRequest, type InsertInstallationRequest } from "@shared/schema";
+import { bills, type Bill, type InsertBill } from "@shared/schema";
+import { supportTickets, type SupportTicket, type InsertSupportTicket } from "@shared/schema";
+import { notifications, type Notification, type InsertNotification } from "@shared/schema";
+import { technicianJobs, type TechnicianJob, type InsertTechnicianJob } from "@shared/schema";
+import { userActivities, type UserActivity, type InsertUserActivity } from "@shared/schema";
+import { connectionStats, type ConnectionStat, type InsertConnectionStat } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -84,614 +84,334 @@ export interface IStorage {
   createConnectionStat(stat: InsertConnectionStat): Promise<ConnectionStat>;
 }
 
-export class MemStorage implements IStorage {
-  private usersMap: Map<number, User>;
-  private packagesMap: Map<number, Package>;
-  private subscriptionsMap: Map<number, Subscription>;
-  private installationRequestsMap: Map<number, InstallationRequest>;
-  private billsMap: Map<number, Bill>;
-  private supportTicketsMap: Map<number, SupportTicket>;
-  private notificationsMap: Map<number, Notification>;
-  private technicianJobsMap: Map<number, TechnicianJob>;
-  private userActivitiesMap: Map<number, UserActivity>;
-  private connectionStatsMap: Map<number, ConnectionStat>;
-  
-  private userCurrentId: number;
-  private packageCurrentId: number;
-  private subscriptionCurrentId: number;
-  private installationRequestCurrentId: number;
-  private billCurrentId: number;
-  private supportTicketCurrentId: number;
-  private notificationCurrentId: number;
-  private technicianJobCurrentId: number;
-  private userActivityCurrentId: number;
-  private connectionStatCurrentId: number;
-
-  constructor() {
-    this.usersMap = new Map();
-    this.packagesMap = new Map();
-    this.subscriptionsMap = new Map();
-    this.installationRequestsMap = new Map();
-    this.billsMap = new Map();
-    this.supportTicketsMap = new Map();
-    this.notificationsMap = new Map();
-    this.technicianJobsMap = new Map();
-    this.userActivitiesMap = new Map();
-    this.connectionStatsMap = new Map();
-    
-    this.userCurrentId = 1;
-    this.packageCurrentId = 1;
-    this.subscriptionCurrentId = 1;
-    this.installationRequestCurrentId = 1;
-    this.billCurrentId = 1;
-    this.supportTicketCurrentId = 1;
-    this.notificationCurrentId = 1;
-    this.technicianJobCurrentId = 1;
-    this.userActivityCurrentId = 1;
-    this.connectionStatCurrentId = 1;
-    
-    // Seed data
-    this.seedData();
-  }
-
-  private seedData() {
-    // Add default admin user
-    this.createUser({
-      username: "admin",
-      password: "$2a$10$wEB3RAcVzlO0WC1O7bnAEORLbgQOGJW3bgQKJBJSBQP5Bf1P5uV7a", // "adminpassword"
-      email: "admin@sekar.net",
-      fullName: "Admin User",
-      role: "admin"
-    });
-    
-    // Add default technician user
-    this.createUser({
-      username: "tech",
-      password: "$2a$10$9G5x1rRTVi7bZnvGBL0KeuXwUr0UgoDTH2X1B6VX2XR9kPQngfKK2", // "techpassword"
-      email: "tech@sekar.net",
-      fullName: "Mike Technician",
-      phone: "+62812345678",
-      role: "technician"
-    });
-    
-    // Add default customer user
-    this.createUser({
-      username: "customer",
-      password: "$2a$10$BLgf3EOqmwlwC8Yd0lyOgeMUoLW47LcCLKgKUhAH6sknZ6HW0K1Oa", // "customerpassword"
-      email: "customer@example.com",
-      fullName: "John Smith",
-      phone: "+62898765432",
-      address: "123 Main Street, Building A, Apartment 101, Jakarta Selatan, 12345",
-      role: "customer"
-    });
-    
-    // Add internet packages
-    this.createPackage({
-      name: "Fiber Blast 20",
-      description: "Perfect for small households",
-      speed: 20,
-      uploadSpeed: 10,
-      price: 19900000, // Rp 199,000
-      features: ["20 Mbps Download", "10 Mbps Upload", "Unlimited Data", "24/7 Support"],
-      isPopular: true
-    });
-    
-    this.createPackage({
-      name: "Fiber Blast 50",
-      description: "Ideal for streaming and gaming",
-      speed: 50,
-      uploadSpeed: 25,
-      price: 35000000, // Rp 350,000
-      features: ["50 Mbps Download", "25 Mbps Upload", "Unlimited Data", "24/7 Priority Support"],
-      isPopular: false
-    });
-    
-    this.createPackage({
-      name: "Fiber Blast 100",
-      description: "For power users and businesses",
-      speed: 100,
-      uploadSpeed: 50,
-      price: 59900000, // Rp 599,000
-      features: ["100 Mbps Download", "50 Mbps Upload", "Unlimited Data", "24/7 VIP Support"],
-      isPopular: false
-    });
-    
-    // Create subscription for customer
-    this.createSubscription({
-      userId: 3, // customer
-      packageId: 2, // Fiber Blast 50
-      status: "active",
-      startDate: new Date(),
-      endDate: undefined
-    });
-    
-    // Create bill for customer
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 5);
-    
-    this.createBill({
-      userId: 3, // customer
-      subscriptionId: 1,
-      amount: 35000000, // Rp 350,000
-      dueDate,
-      period: "April 2023"
-    });
-    
-    // Create notifications
-    this.createNotification({
-      title: "Scheduled Maintenance",
-      message: "Maintenance on May 10th from 2-4 AM. Brief service interruption expected.",
-      type: "maintenance",
-      targetRole: null,
-      userId: null
-    });
-    
-    this.createNotification({
-      title: "Payment Reminder",
-      message: "Your bill for April 2023 is due in 5 days. Please make payment to avoid service interruption.",
-      type: "billing",
-      targetRole: null,
-      userId: 3 // customer
-    });
-    
-    this.createNotification({
-      title: "Special Offer",
-      message: "Upgrade to Fiber Blast 100 and get 50% off for the first 3 months!",
-      type: "announcement",
-      targetRole: "customer",
-      userId: null
-    });
-    
-    // Create user activities
-    this.createUserActivity({
-      userId: 3, // customer
-      action: "Bill paid for March 2023",
-      details: { amount: 35000000, date: "2023-03-15" }
-    });
-    
-    this.createUserActivity({
-      userId: 3, // customer
-      action: "Support ticket #1234 resolved",
-      details: { ticketId: 1234, issue: "WiFi Configuration" }
-    });
-    
-    this.createUserActivity({
-      userId: 3, // customer
-      action: "Package upgraded to Fiber Blast 50",
-      details: { previousPackage: "Fiber Blast 20", newPackage: "Fiber Blast 50" }
-    });
-    
-    // Create connection stats
-    this.createConnectionStat({
-      userId: 3, // customer
-      downloadSpeed: 49.2,
-      uploadSpeed: 25.8,
-      ping: 15.3
-    });
-    
-    // Create installation request
-    this.createInstallationRequest({
-      userId: 3, // customer
-      packageId: 2, // Fiber Blast 50
-      address: "123 Main Street, Building A, Apartment 101, Jakarta Selatan, 12345",
-      preferredDate: new Date("2023-05-05T09:00:00"),
-      notes: "Please call before arrival"
-    });
-    
-    // Create support ticket
-    this.createSupportTicket({
-      userId: 3, // customer
-      subject: "Connection Drops Issue",
-      description: "Connection keeps dropping every 30 minutes, especially during evening hours. Router has been restarted multiple times with no improvement.",
-      priority: "high",
-      attachments: []
-    });
-    
-    // Create technician job
-    this.createTechnicianJob({
-      technicianId: 2, // technician
-      installationId: 1,
-      ticketId: null,
-      jobType: "installation",
-      scheduledDate: new Date("2023-05-05T09:00:00"),
-      notes: "New installation for Fiber Blast 50"
-    });
-    
-    // Update installation request with technician
-    this.updateInstallationRequest(1, {
-      technicianId: 2,
-      status: "scheduled"
-    });
-    
-    // Create another technician job for support
-    this.createTechnicianJob({
-      technicianId: 2, // technician
-      installationId: null,
-      ticketId: 1,
-      jobType: "support",
-      scheduledDate: new Date("2023-05-05T11:30:00"),
-      notes: "Check connection drops issue"
-    });
-    
-    // Update support ticket with technician
-    this.updateSupportTicket(1, {
-      technicianId: 2,
-      status: "in_progress"
-    });
-  }
-
+export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: number): Promise<User | undefined> {
-    return this.usersMap.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
-  
+
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.email === email,
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.usersMap.values());
-  }
-  
-  async getUsersByRole(role: string): Promise<User[]> {
-    return Array.from(this.usersMap.values()).filter(
-      (user) => user.role === role,
-    );
+    return await db.select().from(users);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const createdAt = new Date();
-    const user: User = { ...insertUser, id, createdAt };
-    this.usersMap.set(id, user);
-    return user;
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, role));
   }
-  
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [createdUser] = await db.insert(users).values(user).returning();
+    return createdUser;
+  }
+
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.usersMap.get(id);
-    if (!user) {
-      return undefined;
-    }
-    
-    const updatedUser = { ...user, ...updates };
-    this.usersMap.set(id, updatedUser);
+    const [updatedUser] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
     return updatedUser;
   }
-  
+
   // Packages
   async getPackage(id: number): Promise<Package | undefined> {
-    return this.packagesMap.get(id);
-  }
-  
-  async getAllPackages(): Promise<Package[]> {
-    return Array.from(this.packagesMap.values());
-  }
-  
-  async createPackage(insertPackage: InsertPackage): Promise<Package> {
-    const id = this.packageCurrentId++;
-    const createdAt = new Date();
-    const pkg: Package = { ...insertPackage, id, createdAt };
-    this.packagesMap.set(id, pkg);
+    const [pkg] = await db.select().from(packages).where(eq(packages.id, id));
     return pkg;
   }
-  
+
+  async getAllPackages(): Promise<Package[]> {
+    return await db.select().from(packages);
+  }
+
+  async createPackage(pkg: InsertPackage): Promise<Package> {
+    const [createdPackage] = await db.insert(packages).values(pkg).returning();
+    return createdPackage;
+  }
+
   async updatePackage(id: number, updates: Partial<Package>): Promise<Package | undefined> {
-    const pkg = this.packagesMap.get(id);
-    if (!pkg) {
-      return undefined;
-    }
-    
-    const updatedPackage = { ...pkg, ...updates };
-    this.packagesMap.set(id, updatedPackage);
+    const [updatedPackage] = await db
+      .update(packages)
+      .set(updates)
+      .where(eq(packages.id, id))
+      .returning();
     return updatedPackage;
   }
-  
+
   // Subscriptions
   async getSubscription(id: number): Promise<Subscription | undefined> {
-    return this.subscriptionsMap.get(id);
-  }
-  
-  async getUserSubscriptions(userId: number): Promise<Subscription[]> {
-    return Array.from(this.subscriptionsMap.values()).filter(
-      (subscription) => subscription.userId === userId,
-    );
-  }
-  
-  async getAllSubscriptions(): Promise<Subscription[]> {
-    return Array.from(this.subscriptionsMap.values());
-  }
-  
-  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
-    const id = this.subscriptionCurrentId++;
-    const createdAt = new Date();
-    const subscription: Subscription = { ...insertSubscription, id, createdAt };
-    this.subscriptionsMap.set(id, subscription);
+    const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
     return subscription;
   }
-  
+
+  async getUserSubscriptions(userId: number): Promise<Subscription[]> {
+    return await db.select().from(subscriptions).where(eq(subscriptions.userId, userId));
+  }
+
+  async getAllSubscriptions(): Promise<Subscription[]> {
+    return await db.select().from(subscriptions);
+  }
+
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [createdSubscription] = await db.insert(subscriptions).values(subscription).returning();
+    return createdSubscription;
+  }
+
   async updateSubscription(id: number, updates: Partial<Subscription>): Promise<Subscription | undefined> {
-    const subscription = this.subscriptionsMap.get(id);
-    if (!subscription) {
-      return undefined;
-    }
-    
-    const updatedSubscription = { ...subscription, ...updates };
-    this.subscriptionsMap.set(id, updatedSubscription);
+    const [updatedSubscription] = await db
+      .update(subscriptions)
+      .set(updates)
+      .where(eq(subscriptions.id, id))
+      .returning();
     return updatedSubscription;
   }
-  
+
   // Installation Requests
   async getInstallationRequest(id: number): Promise<InstallationRequest | undefined> {
-    return this.installationRequestsMap.get(id);
-  }
-  
-  async getUserInstallationRequests(userId: number): Promise<InstallationRequest[]> {
-    return Array.from(this.installationRequestsMap.values()).filter(
-      (request) => request.userId === userId,
-    );
-  }
-  
-  async getTechnicianInstallationRequests(technicianId: number): Promise<InstallationRequest[]> {
-    return Array.from(this.installationRequestsMap.values()).filter(
-      (request) => request.technicianId === technicianId,
-    );
-  }
-  
-  async getAllInstallationRequests(): Promise<InstallationRequest[]> {
-    return Array.from(this.installationRequestsMap.values());
-  }
-  
-  async createInstallationRequest(insertRequest: InsertInstallationRequest): Promise<InstallationRequest> {
-    const id = this.installationRequestCurrentId++;
-    const createdAt = new Date();
-    const status = "pending";
-    const request: InstallationRequest = { ...insertRequest, id, status, technicianId: undefined, createdAt };
-    this.installationRequestsMap.set(id, request);
+    const [request] = await db.select().from(installationRequests).where(eq(installationRequests.id, id));
     return request;
   }
-  
+
+  async getUserInstallationRequests(userId: number): Promise<InstallationRequest[]> {
+    return await db
+      .select()
+      .from(installationRequests)
+      .where(eq(installationRequests.userId, userId));
+  }
+
+  async getTechnicianInstallationRequests(technicianId: number): Promise<InstallationRequest[]> {
+    return await db
+      .select()
+      .from(installationRequests)
+      .where(eq(installationRequests.technicianId, technicianId));
+  }
+
+  async getAllInstallationRequests(): Promise<InstallationRequest[]> {
+    return await db.select().from(installationRequests);
+  }
+
+  async createInstallationRequest(request: InsertInstallationRequest): Promise<InstallationRequest> {
+    const [createdRequest] = await db.insert(installationRequests).values(request).returning();
+    return createdRequest;
+  }
+
   async updateInstallationRequest(id: number, updates: Partial<InstallationRequest>): Promise<InstallationRequest | undefined> {
-    const request = this.installationRequestsMap.get(id);
-    if (!request) {
-      return undefined;
-    }
-    
-    const updatedRequest = { ...request, ...updates };
-    this.installationRequestsMap.set(id, updatedRequest);
+    const [updatedRequest] = await db
+      .update(installationRequests)
+      .set(updates)
+      .where(eq(installationRequests.id, id))
+      .returning();
     return updatedRequest;
   }
-  
+
   // Bills
   async getBill(id: number): Promise<Bill | undefined> {
-    return this.billsMap.get(id);
-  }
-  
-  async getUserBills(userId: number): Promise<Bill[]> {
-    return Array.from(this.billsMap.values()).filter(
-      (bill) => bill.userId === userId,
-    );
-  }
-  
-  async getAllBills(): Promise<Bill[]> {
-    return Array.from(this.billsMap.values());
-  }
-  
-  async createBill(insertBill: InsertBill): Promise<Bill> {
-    const id = this.billCurrentId++;
-    const createdAt = new Date();
-    const status = "unpaid";
-    const bill: Bill = { ...insertBill, id, status, paymentDate: undefined, paymentProof: undefined, createdAt };
-    this.billsMap.set(id, bill);
+    const [bill] = await db.select().from(bills).where(eq(bills.id, id));
     return bill;
   }
-  
+
+  async getUserBills(userId: number): Promise<Bill[]> {
+    return await db.select().from(bills).where(eq(bills.userId, userId));
+  }
+
+  async getAllBills(): Promise<Bill[]> {
+    return await db.select().from(bills);
+  }
+
+  async createBill(bill: InsertBill): Promise<Bill> {
+    const [createdBill] = await db.insert(bills).values(bill).returning();
+    return createdBill;
+  }
+
   async updateBill(id: number, updates: Partial<Bill>): Promise<Bill | undefined> {
-    const bill = this.billsMap.get(id);
-    if (!bill) {
-      return undefined;
-    }
-    
-    const updatedBill = { ...bill, ...updates };
-    this.billsMap.set(id, updatedBill);
+    const [updatedBill] = await db
+      .update(bills)
+      .set(updates)
+      .where(eq(bills.id, id))
+      .returning();
     return updatedBill;
   }
-  
+
   async updateBillPayment(id: number, paymentProof: string): Promise<Bill | undefined> {
-    const bill = this.billsMap.get(id);
-    if (!bill) {
-      return undefined;
-    }
-    
-    const updatedBill: Bill = {
-      ...bill,
-      status: "paid",
-      paymentDate: new Date(),
-      paymentProof
-    };
-    
-    this.billsMap.set(id, updatedBill);
+    const [updatedBill] = await db
+      .update(bills)
+      .set({
+        paymentProof,
+        status: "pending",
+      })
+      .where(eq(bills.id, id))
+      .returning();
     return updatedBill;
   }
-  
+
   // Support Tickets
   async getSupportTicket(id: number): Promise<SupportTicket | undefined> {
-    return this.supportTicketsMap.get(id);
-  }
-  
-  async getUserSupportTickets(userId: number): Promise<SupportTicket[]> {
-    return Array.from(this.supportTicketsMap.values()).filter(
-      (ticket) => ticket.userId === userId,
-    );
-  }
-  
-  async getTechnicianSupportTickets(technicianId: number): Promise<SupportTicket[]> {
-    return Array.from(this.supportTicketsMap.values()).filter(
-      (ticket) => ticket.technicianId === technicianId,
-    );
-  }
-  
-  async getAllSupportTickets(): Promise<SupportTicket[]> {
-    return Array.from(this.supportTicketsMap.values());
-  }
-  
-  async createSupportTicket(insertTicket: InsertSupportTicket): Promise<SupportTicket> {
-    const id = this.supportTicketCurrentId++;
-    const createdAt = new Date();
-    const status = "new";
-    const ticket: SupportTicket = { ...insertTicket, id, status, technicianId: undefined, createdAt };
-    this.supportTicketsMap.set(id, ticket);
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
     return ticket;
   }
-  
+
+  async getUserSupportTickets(userId: number): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets).where(eq(supportTickets.userId, userId));
+  }
+
+  async getTechnicianSupportTickets(technicianId: number): Promise<SupportTicket[]> {
+    return await db
+      .select()
+      .from(supportTickets)
+      .where(eq(supportTickets.technicianId, technicianId));
+  }
+
+  async getAllSupportTickets(): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets);
+  }
+
+  async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
+    const [createdTicket] = await db.insert(supportTickets).values(ticket).returning();
+    return createdTicket;
+  }
+
   async updateSupportTicket(id: number, updates: Partial<SupportTicket>): Promise<SupportTicket | undefined> {
-    const ticket = this.supportTicketsMap.get(id);
-    if (!ticket) {
-      return undefined;
-    }
-    
-    const updatedTicket = { ...ticket, ...updates };
-    this.supportTicketsMap.set(id, updatedTicket);
+    const [updatedTicket] = await db
+      .update(supportTickets)
+      .set(updates)
+      .where(eq(supportTickets.id, id))
+      .returning();
     return updatedTicket;
   }
-  
+
   // Notifications
   async getNotification(id: number): Promise<Notification | undefined> {
-    return this.notificationsMap.get(id);
-  }
-  
-  async getUserNotifications(userId: number, role: string): Promise<Notification[]> {
-    // Get all user-specific notifications and broadcast notifications for user's role
-    return Array.from(this.notificationsMap.values()).filter(
-      (notification) => 
-        (notification.userId === userId) || 
-        (notification.userId === null && (notification.targetRole === null || notification.targetRole === role))
-    );
-  }
-  
-  async getAllNotifications(): Promise<Notification[]> {
-    return Array.from(this.notificationsMap.values());
-  }
-  
-  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
-    const id = this.notificationCurrentId++;
-    const createdAt = new Date();
-    const isRead = false;
-    const notification: Notification = { ...insertNotification, id, isRead, createdAt };
-    this.notificationsMap.set(id, notification);
+    const [notification] = await db.select().from(notifications).where(eq(notifications.id, id));
     return notification;
   }
-  
+
+  async getUserNotifications(userId: number, role: string): Promise<Notification[]> {
+    // Get notifications specifically for this user
+    const userNotifications = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId));
+
+    // Get notifications for the user's role
+    const roleNotifications = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.targetRole, role));
+
+    // Get global notifications (without userId or targetRole)
+    const globalNotifications = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          notifications.userId.isNull(),
+          notifications.targetRole.isNull()
+        )
+      );
+
+    // Combine all notifications
+    return [...userNotifications, ...roleNotifications, ...globalNotifications];
+  }
+
+  async getAllNotifications(): Promise<Notification[]> {
+    return await db.select().from(notifications);
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [createdNotification] = await db.insert(notifications).values(notification).returning();
+    return createdNotification;
+  }
+
   async markNotificationAsRead(id: number): Promise<Notification | undefined> {
-    const notification = this.notificationsMap.get(id);
-    if (!notification) {
-      return undefined;
-    }
-    
-    const updatedNotification: Notification = {
-      ...notification,
-      isRead: true
-    };
-    
-    this.notificationsMap.set(id, updatedNotification);
+    const [updatedNotification] = await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id))
+      .returning();
     return updatedNotification;
   }
-  
+
   // Technician Jobs
   async getTechnicianJob(id: number): Promise<TechnicianJob | undefined> {
-    return this.technicianJobsMap.get(id);
-  }
-  
-  async getTechnicianJobs(technicianId: number): Promise<TechnicianJob[]> {
-    return Array.from(this.technicianJobsMap.values()).filter(
-      (job) => job.technicianId === technicianId,
-    );
-  }
-  
-  async getAllTechnicianJobs(): Promise<TechnicianJob[]> {
-    return Array.from(this.technicianJobsMap.values());
-  }
-  
-  async createTechnicianJob(insertJob: InsertTechnicianJob): Promise<TechnicianJob> {
-    const id = this.technicianJobCurrentId++;
-    const createdAt = new Date();
-    const status = "scheduled";
-    const job: TechnicianJob = { 
-      ...insertJob, 
-      id, 
-      status, 
-      completionDate: undefined, 
-      completionProof: [], 
-      createdAt 
-    };
-    this.technicianJobsMap.set(id, job);
+    const [job] = await db.select().from(technicianJobs).where(eq(technicianJobs.id, id));
     return job;
   }
-  
+
+  async getTechnicianJobs(technicianId: number): Promise<TechnicianJob[]> {
+    return await db
+      .select()
+      .from(technicianJobs)
+      .where(eq(technicianJobs.technicianId, technicianId));
+  }
+
+  async getAllTechnicianJobs(): Promise<TechnicianJob[]> {
+    return await db.select().from(technicianJobs);
+  }
+
+  async createTechnicianJob(job: InsertTechnicianJob): Promise<TechnicianJob> {
+    const [createdJob] = await db.insert(technicianJobs).values(job).returning();
+    return createdJob;
+  }
+
   async updateTechnicianJob(id: number, updates: Partial<TechnicianJob>): Promise<TechnicianJob | undefined> {
-    const job = this.technicianJobsMap.get(id);
-    if (!job) {
-      return undefined;
-    }
-    
-    // If status is being updated to completed, set completion date if not provided
-    if (updates.status === "completed" && !updates.completionDate) {
-      updates.completionDate = new Date();
-    }
-    
-    const updatedJob = { ...job, ...updates };
-    this.technicianJobsMap.set(id, updatedJob);
+    const [updatedJob] = await db
+      .update(technicianJobs)
+      .set(updates)
+      .where(eq(technicianJobs.id, id))
+      .returning();
     return updatedJob;
   }
-  
+
   // User Activities
   async getUserActivity(id: number): Promise<UserActivity | undefined> {
-    return this.userActivitiesMap.get(id);
-  }
-  
-  async getUserActivities(userId: number): Promise<UserActivity[]> {
-    return Array.from(this.userActivitiesMap.values()).filter(
-      (activity) => activity.userId === userId,
-    );
-  }
-  
-  async getAllUserActivities(): Promise<UserActivity[]> {
-    return Array.from(this.userActivitiesMap.values());
-  }
-  
-  async createUserActivity(insertActivity: InsertUserActivity): Promise<UserActivity> {
-    const id = this.userActivityCurrentId++;
-    const createdAt = new Date();
-    const activity: UserActivity = { ...insertActivity, id, createdAt };
-    this.userActivitiesMap.set(id, activity);
+    const [activity] = await db.select().from(userActivities).where(eq(userActivities.id, id));
     return activity;
   }
-  
+
+  async getUserActivities(userId: number): Promise<UserActivity[]> {
+    return await db
+      .select()
+      .from(userActivities)
+      .where(eq(userActivities.userId, userId))
+      .orderBy(desc(userActivities.createdAt));
+  }
+
+  async getAllUserActivities(): Promise<UserActivity[]> {
+    return await db.select().from(userActivities).orderBy(desc(userActivities.createdAt));
+  }
+
+  async createUserActivity(activity: InsertUserActivity): Promise<UserActivity> {
+    const [createdActivity] = await db.insert(userActivities).values(activity).returning();
+    return createdActivity;
+  }
+
   // Connection Stats
   async getConnectionStat(id: number): Promise<ConnectionStat | undefined> {
-    return this.connectionStatsMap.get(id);
-  }
-  
-  async getUserConnectionStats(userId: number): Promise<ConnectionStat[]> {
-    return Array.from(this.connectionStatsMap.values()).filter(
-      (stat) => stat.userId === userId,
-    );
-  }
-  
-  async createConnectionStat(insertStat: InsertConnectionStat): Promise<ConnectionStat> {
-    const id = this.connectionStatCurrentId++;
-    const recordedAt = new Date();
-    const stat: ConnectionStat = { ...insertStat, id, recordedAt };
-    this.connectionStatsMap.set(id, stat);
+    const [stat] = await db.select().from(connectionStats).where(eq(connectionStats.id, id));
     return stat;
+  }
+
+  async getUserConnectionStats(userId: number): Promise<ConnectionStat[]> {
+    return await db
+      .select()
+      .from(connectionStats)
+      .where(eq(connectionStats.userId, userId))
+      .orderBy(desc(connectionStats.recordedAt));
+  }
+
+  async createConnectionStat(stat: InsertConnectionStat): Promise<ConnectionStat> {
+    const [createdStat] = await db.insert(connectionStats).values(stat).returning();
+    return createdStat;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
