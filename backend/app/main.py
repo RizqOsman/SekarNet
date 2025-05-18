@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.exc import SQLAlchemyError
+# from sqlalchemy.exc import SQLAlchemyError
 
 from .api.api import api_router
 from .core.config import settings
@@ -39,5 +39,5 @@ def health_check():
         # You could add database check here 
         # by making a simple query
         return {"status": "healthy"}
-    except SQLAlchemyError:
+    except Exception as e:
         return {"status": "unhealthy", "details": "Database connection error"}

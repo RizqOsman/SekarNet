@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
 
 from ...core.config import settings
 from ...core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
@@ -11,6 +10,7 @@ from ...db.session import get_db
 from ...models.user import User
 from ...schemas.token import Token, TokenPayload
 from ...schemas.user import UserCreate, User as UserSchema
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
