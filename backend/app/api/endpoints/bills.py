@@ -1,8 +1,10 @@
 from typing import List, Any
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import pathlib
 
 from ...api.deps import get_db, get_current_active_user, get_current_admin
 from ...models.user import User
@@ -279,3 +281,183 @@ def verify_payment(
     db.commit()
     db.refresh(bill)
     return bill
+
+# QRIS Payment endpoints
+@router.get("/{bill_id}/qris")
+def get_qris_data(
+    *,
+    db: Session = Depends(get_db),
+    bill_id: int,
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Get QRIS payment data for a bill.
+    """
+    bill = db.query(Bill).filter(Bill.id == bill_id).first()
+    
+    if not bill:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bill not found",
+        )
+    
+    # Check permissions: users can only access their own bills, admins can access all
+    if bill.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    
+    # Static QRIS data with your existing QRIS image
+    qris_data = {
+        "billId": bill.id,
+        "amount": bill.total_amount,
+        "merchantName": "SEKAR NET",
+        "merchantCity": "Jakarta",
+        "postalCode": "12345",
+        "billNumber": f"BILL-{bill.id:06d}",
+        "reference1": f"REF-{bill.id}",
+        "reference2": bill.description or f"Period {bill.bill_date.strftime('%B %Y')}",
+        "qrImageUrl": "/assets/qris-sekar-net.png",  # Path to your QRIS image
+        "validUntil": (datetime.now() + timedelta(hours=24)).isoformat()  # 24 hours
+    }
+    
+    return {
+        "qrisData": qris_data,
+        "downloadUrl": f"/api/bills/{bill_id}/qris/download",
+        "instructions": [
+            "1. Buka aplikasi e-wallet atau mobile banking Anda",
+            "2. Pilih fitur Scan QRIS",
+            "3. Scan kode QR di atas",
+            "4. Masukkan nominal pembayaran sesuai tagihan",
+            "5. Periksa detail pembayaran",
+            "6. Konfirmasi pembayaran",
+            "7. Simpan bukti pembayaran",
+            "8. Upload bukti pembayaran di halaman billing"
+        ],
+        "paymentDetails": {
+            "amount": f"Rp {bill.total_amount:,}",
+            "period": bill.description or f"Period {bill.bill_date.strftime('%B %Y')}",
+            "dueDate": bill.due_date.strftime('%d/%m/%Y'),
+            "billNumber": qris_data["billNumber"]
+        }
+    }
+
+
+@router.get("/{bill_id}/qris/download")
+def download_qris_image(
+    *,
+    db: Session = Depends(get_db),
+    bill_id: int,
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Download QRIS image for a bill.
+    """
+    bill = db.query(Bill).filter(Bill.id == bill_id).first()
+    
+    if not bill:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bill not found",
+        )
+    
+    # Check permissions: users can only access their own bills, admins can access all
+    if bill.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    
+    # Path to your static QRIS image
+    qris_image_path = pathlib.Path("public/assets/qris-sekar-net.png")
+    
+    # Check if file exists
+    if not qris_image_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="QRIS image not found",
+        )
+    
+    # Return the file for download
+    return FileResponse(
+        path=qris_image_path,
+        filename=f"qris-sekar-net-bill-{bill_id}.png",
+        media_type="image/png"
+    )
+
+
+@router.post("/{bill_id}/qris/verify")
+async def verify_qris_payment(
+    *,
+    db: Session = Depends(get_db),
+    bill_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Submit payment proof for QRIS payment verification.
+    """
+    bill = db.query(Bill).filter(Bill.id == bill_id).first()
+    
+    if not bill:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bill not found",
+        )
+    
+    # Check permissions: users can only upload for their own bills
+    if bill.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "application/pdf"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}",
+        )
+    
+    # Validate file size (2MB limit)
+    if file.size > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large. Maximum size is 2MB",
+        )
+    
+    # Create uploads directory if it doesn't exist
+    uploads_dir = pathlib.Path("uploads/payment-proofs")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_extension = pathlib.Path(file.filename).suffix
+    filename = f"payment-proof-{bill_id}-{timestamp}{file_extension}"
+    file_path = uploads_dir / filename
+    
+    # Save the file
+    try:
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file: {str(e)}",
+        )
+    
+    # Update bill with payment proof
+    bill.payment_proof = str(file_path)
+    bill.payment_status = PaymentStatus.PENDING_VERIFICATION
+    bill.payment_date = datetime.now()
+    
+    db.commit()
+    db.refresh(bill)
+    
+    return {
+        "message": "Payment proof uploaded successfully",
+        "bill": bill
+    }

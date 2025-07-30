@@ -7,6 +7,7 @@ from ..db.base import Base
 
 class PaymentStatus(str, enum.Enum):
     PENDING = "pending"
+    PENDING_VERIFICATION = "pending_verification"
     PAID = "paid"
     OVERDUE = "overdue"
     CANCELLED = "cancelled"

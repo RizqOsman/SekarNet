@@ -20,6 +20,12 @@ oauth2_refresh_scheme = OAuth2PasswordBearer(
     auto_error=False
 )
 
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @router.post("/login", response_model=Token)
 def login_access_token(
     db: Session = Depends(get_db),
@@ -50,6 +56,60 @@ def login_access_token(
         "refresh_token": create_refresh_token(user.id),
         "token_type": "bearer",
     }
+
+@router.post("/login-json")
+def login_json(
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    JSON login endpoint for frontend compatibility
+    """
+    try:
+        # Simple hardcoded response for now
+        # Get user from database by username
+        user = db.query(User).filter(User.username == login_data.username).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        
+        # Verify password
+        if not verify_password(login_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            user.id, expires_delta=access_token_expires
+        )
+        
+        return {
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "fullName": user.full_name,
+                "role": user.role,
+                "phone": user.phone,
+                "address": user.address,
+                "createdAt": int(user.created_at.timestamp()) if user.created_at else None
+            },
+            "token": access_token
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"Error in login_json: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 @router.post("/refresh", response_model=Token)
 def refresh_token(
@@ -107,7 +167,7 @@ def refresh_token(
         "token_type": "bearer",
     }
 
-@router.post("/register", response_model=UserSchema)
+@router.post("/register")
 def register_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
@@ -140,12 +200,30 @@ def register_user(
         full_name=user_in.full_name,
         phone=user_in.phone,
         address=user_in.address,
-        role=user_in.role,
-        is_active=user_in.is_active,
+        role=user_in.role or "customer",  # Default to customer
+        is_active=user_in.is_active if user_in.is_active is not None else True,
     )
     
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     
-    return db_user
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        db_user.id, expires_delta=access_token_expires
+    )
+    
+    return {
+        "user": {
+            "id": db_user.id,
+            "username": db_user.username,
+            "email": db_user.email,
+            "fullName": db_user.full_name,
+            "role": db_user.role,
+            "phone": db_user.phone,
+            "address": db_user.address,
+            "createdAt": int(db_user.created_at.timestamp()) if db_user.created_at else None
+        },
+        "token": access_token
+    }

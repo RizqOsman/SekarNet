@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
-from ...api.deps import get_db, get_current_active_user, get_current_admin
+from ...api.deps import get_db, get_current_active_user, get_current_admin, oauth2_scheme
 from ...core.security import get_password_hash, verify_password
 from ...models.user import User
 from ...schemas.user import User as UserSchema, UserCreate, UserUpdate
@@ -32,6 +32,47 @@ def read_user_me(
     Get current user.
     """
     return current_user
+
+@router.get("/me-simple")
+def read_user_me_simple(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Get current user with simple token validation.
+    """
+    try:
+        from jose import jwt
+        from ...core.config import settings
+        from ...schemas.token import TokenPayload
+        
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+        
+        user = db.query(User).filter(User.id == token_data.sub).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+            
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "fullName": user.full_name,
+            "role": user.role,
+            "phone": user.phone,
+            "address": user.address,
+            "createdAt": int(user.created_at.timestamp()) if user.created_at else None
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
 
 @router.put("/me", response_model=UserSchema)
 def update_user_me(

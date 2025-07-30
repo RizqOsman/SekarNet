@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, String, Integer, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from ..db.base import Base
 
@@ -17,3 +18,6 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    subscriptions = relationship("Subscription", back_populates="user", lazy="dynamic")
