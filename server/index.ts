@@ -4,8 +4,10 @@ dotenv.config();
 
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import WebSocketManager from "./websocket";
 
 const app = express();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -42,6 +44,12 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Initialize WebSocket manager only in production or when explicitly enabled
+  let wsManager: WebSocketManager | null = null;
+  if (process.env.ENABLE_WEBSOCKET === 'true' || app.get("env") === "production") {
+    wsManager = new WebSocketManager(server);
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -65,9 +73,13 @@ app.use((req, res, next) => {
   const port = 5000;
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: "localhost",
   }, () => {
     log(`serving on port ${port}`);
+    if (wsManager) {
+      log(`WebSocket server initialized`);
+    } else {
+      log(`WebSocket server disabled (use ENABLE_WEBSOCKET=true to enable)`);
+    }
   });
 })();

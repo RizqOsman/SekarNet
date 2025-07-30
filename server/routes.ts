@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import path from "path";
+import fs from "fs";
 
 // JWT Secret - in a real app, this would be in an env variable
 const JWT_SECRET = "sekar-net-secret-key";
@@ -456,6 +458,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newStat);
     } catch (error) {
       res.status(500).json({ message: "Error creating connection stat" });
+    }
+  });
+
+  // QRIS Payment Routes
+  app.get("/api/payment/qris/:billId", authenticateToken, async (req, res) => {
+    try {
+      const { billId } = req.params;
+      
+      // Get bill details
+      const bill = await storage.getBill(parseInt(billId));
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      // Only bill owner or admin can access QRIS
+      if (req.body.user.role !== "admin" && bill.userId !== req.body.user.id) {
+        return res.status(403).json({ message: "Forbidden: You don't have permission to access this bill" });
+      }
+      
+      // Static QRIS data with your existing QRIS image
+      const qrisData = {
+        billId: bill.id,
+        amount: bill.amount,
+        merchantName: "SEKAR NET",
+        merchantCity: "Jakarta",
+        postalCode: "12345",
+        billNumber: `BILL-${bill.id.toString().padStart(6, '0')}`,
+        reference1: `REF-${bill.id}`,
+        reference2: bill.period,
+        // Use your static QRIS image
+        qrImageUrl: "/assets/qris-sekar-net.png", // Path to your QRIS image
+        validUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+      };
+      
+      res.json({
+        qrisData,
+        downloadUrl: `/api/payment/qris/${billId}/download`,
+        instructions: [
+          "1. Buka aplikasi e-wallet atau mobile banking Anda",
+          "2. Pilih fitur Scan QRIS",
+          "3. Scan kode QR di atas",
+          "4. Masukkan nominal pembayaran sesuai tagihan",
+          "5. Periksa detail pembayaran",
+          "6. Konfirmasi pembayaran",
+          "7. Simpan bukti pembayaran",
+          "8. Upload bukti pembayaran di halaman billing"
+        ],
+        paymentDetails: {
+          amount: `Rp ${(bill.amount / 100).toLocaleString()}`,
+          period: bill.period,
+          dueDate: new Date(bill.dueDate).toLocaleDateString('id-ID'),
+          billNumber: qrisData.billNumber
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error generating QRIS" });
+    }
+  });
+
+  app.get("/api/payment/qris/:billId/download", authenticateToken, async (req, res) => {
+    try {
+      const { billId } = req.params;
+      
+      // Get bill details
+      const bill = await storage.getBill(parseInt(billId));
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      // Only bill owner or admin can download QRIS
+      if (req.body.user.role !== "admin" && bill.userId !== req.body.user.id) {
+        return res.status(403).json({ message: "Forbidden: You don't have permission to access this bill" });
+      }
+      
+      // Path to your static QRIS image
+      const qrisImagePath = path.join(process.cwd(), 'public', 'assets', 'qris-sekar-net.png');
+      
+      // Check if file exists
+      if (!fs.existsSync(qrisImagePath)) {
+        return res.status(404).json({ message: "QRIS image not found" });
+      }
+      
+      // Set headers for download
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `attachment; filename="qris-sekar-net-bill-${billId}.png"`);
+      
+      // Send the file
+      res.sendFile(qrisImagePath);
+    } catch (error) {
+      res.status(500).json({ message: "Error downloading QRIS" });
+    }
+  });
+
+  app.post("/api/payment/qris/:billId/verify", authenticateToken, async (req, res) => {
+    try {
+      const { billId } = req.params;
+      const { paymentProof } = req.body;
+      
+      // Get bill details
+      const bill = await storage.getBill(parseInt(billId));
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      // Only bill owner or admin can verify payment
+      if (req.body.user.role !== "admin" && bill.userId !== req.body.user.id) {
+        return res.status(403).json({ message: "Forbidden: You don't have permission to verify this payment" });
+      }
+      
+      // Update bill with payment proof
+      const updatedBill = await storage.updateBillPayment(parseInt(billId), paymentProof);
+      
+      res.json({
+        message: "Payment proof uploaded successfully",
+        bill: updatedBill
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error verifying payment" });
+    }
+  });
+
+  // Payment History Routes
+  app.get("/api/payment/history", authenticateToken, async (req, res) => {
+    try {
+      const payments = req.body.user.role === "admin" 
+        ? await storage.getAllBills()
+        : await storage.getUserBills(req.body.user.id);
+      
+      // Filter only paid bills
+      const paidBills = payments.filter(bill => bill.status === "paid");
+      
+      res.json(paidBills);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching payment history" });
+    }
+  });
+
+  app.get("/api/payment/statistics", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
+    try {
+      const allBills = await storage.getAllBills();
+      
+      const stats = {
+        totalBills: allBills.length,
+        paidBills: allBills.filter(bill => bill.status === "paid").length,
+        unpaidBills: allBills.filter(bill => bill.status === "unpaid").length,
+        overdueBills: allBills.filter(bill => bill.status === "overdue").length,
+        totalRevenue: allBills
+          .filter(bill => bill.status === "paid")
+          .reduce((sum, bill) => sum + bill.amount, 0),
+        pendingRevenue: allBills
+          .filter(bill => bill.status === "unpaid")
+          .reduce((sum, bill) => sum + bill.amount, 0)
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching payment statistics" });
     }
   });
 

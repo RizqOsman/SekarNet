@@ -1,10 +1,11 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, doublePrecision, date } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real, blob } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Users table
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
@@ -12,7 +13,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   address: text("address"),
   role: text("role").notNull().default("customer"), // customer, technician, admin
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at").default(sql`(unixepoch())`),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -21,16 +22,16 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 
 // Internet Packages table
-export const packages = pgTable("packages", {
-  id: serial("id").primaryKey(),
+export const packages = sqliteTable("packages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description").notNull(),
   speed: integer("speed").notNull(), // in Mbps
   uploadSpeed: integer("upload_speed").notNull(), // in Mbps
   price: integer("price").notNull(), // in cents
-  features: text("features").array(),
-  isPopular: boolean("is_popular").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  features: text("features"), // JSON string for SQLite
+  isPopular: integer("is_popular", { mode: 'boolean' }).default(false),
+  createdAt: integer("created_at").default(sql`(unixepoch())`),
 });
 
 export const insertPackageSchema = createInsertSchema(packages).omit({
@@ -39,14 +40,14 @@ export const insertPackageSchema = createInsertSchema(packages).omit({
 });
 
 // Subscriptions table
-export const subscriptions = pgTable("subscriptions", {
-  id: serial("id").primaryKey(),
+export const subscriptions = sqliteTable("subscriptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   packageId: integer("package_id").notNull(),
   status: text("status").notNull().default("active"), // active, suspended, cancelled
-  startDate: timestamp("start_date").defaultNow(),
-  endDate: timestamp("end_date"),
-  createdAt: timestamp("created_at").defaultNow(),
+  startDate: integer("start_date", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  endDate: integer("end_date", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
@@ -55,16 +56,16 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 // Installation Requests table
-export const installationRequests = pgTable("installation_requests", {
-  id: serial("id").primaryKey(),
+export const installationRequests = sqliteTable("installation_requests", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   packageId: integer("package_id").notNull(),
   address: text("address").notNull(),
-  preferredDate: timestamp("preferred_date"),
+  preferredDate: integer("preferred_date", { mode: 'timestamp' }),
   status: text("status").notNull().default("pending"), // pending, scheduled, in_progress, completed, cancelled
   technicianId: integer("technician_id"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertInstallationRequestSchema = createInsertSchema(installationRequests).omit({
@@ -75,17 +76,20 @@ export const insertInstallationRequestSchema = createInsertSchema(installationRe
 });
 
 // Bills table
-export const bills = pgTable("bills", {
-  id: serial("id").primaryKey(),
+export const bills = sqliteTable("bills", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   subscriptionId: integer("subscription_id").notNull(),
   amount: integer("amount").notNull(), // in cents
-  dueDate: timestamp("due_date").notNull(),
+  dueDate: integer("due_date", { mode: 'timestamp' }).notNull(),
   status: text("status").notNull().default("unpaid"), // unpaid, paid, overdue
-  paymentDate: timestamp("payment_date"),
+  paymentDate: integer("payment_date", { mode: 'timestamp' }),
   paymentProof: text("payment_proof"),
   period: text("period").notNull(), // e.g., "May 2023"
-  createdAt: timestamp("created_at").defaultNow(),
+  issueDate: integer("issue_date", { mode: 'timestamp' }), // Added missing field
+  periodStart: integer("period_start", { mode: 'timestamp' }), // Added missing field
+  periodEnd: integer("period_end", { mode: 'timestamp' }), // Added missing field
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertBillSchema = createInsertSchema(bills).omit({
@@ -97,35 +101,42 @@ export const insertBillSchema = createInsertSchema(bills).omit({
 });
 
 // Support Tickets table
-export const supportTickets = pgTable("support_tickets", {
-  id: serial("id").primaryKey(),
+export const supportTickets = sqliteTable("support_tickets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  subject: text("subject").notNull(),
+  title: text("title").notNull(),
   description: text("description").notNull(),
-  status: text("status").notNull().default("new"), // new, in_progress, resolved, closed
-  priority: text("priority").notNull().default("medium"), // low, medium, high
-  attachments: text("attachments").array(),
+  subject: text("subject"), // Added missing field
+  priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
+  status: text("status").notNull().default("open"), // open, in_progress, resolved, closed
+  category: text("category").notNull(), // technical, billing, installation, general
   technicianId: integer("technician_id"),
-  createdAt: timestamp("created_at").defaultNow(),
+  resolution: text("resolution"),
+  response: text("response"), // Added missing field
+  attachments: text("attachments"), // Added missing field - JSON string
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
   id: true,
   status: true,
   technicianId: true,
+  resolution: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 // Notifications table
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
-  type: text("type").notNull(), // announcement, maintenance, outage, billing, support
-  targetRole: text("target_role"), // null = all, or specify role
-  isRead: boolean("is_read").default(false),
-  userId: integer("user_id"), // null = broadcast to all users
-  createdAt: timestamp("created_at").defaultNow(),
+  type: text("type").notNull(), // info, warning, error, success
+  targetRole: text("target_role"), // Added missing field
+  isRead: integer("is_read", { mode: 'boolean' }).default(false),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
@@ -135,35 +146,37 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 });
 
 // Technician Jobs table
-export const technicianJobs = pgTable("technician_jobs", {
-  id: serial("id").primaryKey(),
+export const technicianJobs = sqliteTable("technician_jobs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   technicianId: integer("technician_id").notNull(),
-  installationId: integer("installation_id"),
-  ticketId: integer("ticket_id"),
-  jobType: text("job_type").notNull(), // installation, support, maintenance
-  status: text("status").notNull().default("scheduled"), // scheduled, in_progress, completed, cancelled
-  scheduledDate: timestamp("scheduled_date").notNull(),
-  completionDate: timestamp("completion_date"),
-  completionProof: text("completion_proof").array(),
+  jobType: text("job_type").notNull(), // installation, maintenance, repair
+  status: text("status").notNull().default("pending"), // pending, in_progress, completed, cancelled
+  address: text("address").notNull(),
+  scheduledDate: integer("scheduled_date", { mode: 'timestamp' }),
+  completedDate: integer("completed_date", { mode: 'timestamp' }),
+  installationId: integer("installation_id"), // Added missing field
+  ticketId: integer("ticket_id"), // Added missing field
+  completionProof: text("completion_proof"), // Added missing field - JSON string
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertTechnicianJobSchema = createInsertSchema(technicianJobs).omit({
   id: true,
   status: true,
-  completionDate: true,
-  completionProof: true,
+  completedDate: true,
   createdAt: true,
 });
 
 // User Activities table
-export const userActivities = pgTable("user_activities", {
-  id: serial("id").primaryKey(),
+export const userActivities = sqliteTable("user_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  action: text("action").notNull(),
-  details: json("details"),
-  createdAt: timestamp("created_at").defaultNow(),
+  activity: text("activity").notNull(),
+  details: text("details"), // JSON string for SQLite
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertUserActivitySchema = createInsertSchema(userActivities).omit({
@@ -172,21 +185,22 @@ export const insertUserActivitySchema = createInsertSchema(userActivities).omit(
 });
 
 // Connection Stats table
-export const connectionStats = pgTable("connection_stats", {
-  id: serial("id").primaryKey(),
+export const connectionStats = sqliteTable("connection_stats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  downloadSpeed: doublePrecision("download_speed").notNull(),
-  uploadSpeed: doublePrecision("upload_speed").notNull(),
-  ping: doublePrecision("ping"),
-  recordedAt: timestamp("recorded_at").defaultNow(),
+  downloadSpeed: real("download_speed"), // in Mbps
+  uploadSpeed: real("upload_speed"), // in Mbps
+  latency: real("latency"), // in ms
+  packetLoss: real("packet_loss"), // percentage
+  timestamp: integer("timestamp", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 export const insertConnectionStatSchema = createInsertSchema(connectionStats).omit({
   id: true,
-  recordedAt: true,
+  timestamp: true,
 });
 
-// Export types
+// Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 

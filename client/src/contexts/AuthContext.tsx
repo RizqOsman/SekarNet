@@ -19,7 +19,7 @@ type AuthContextType = {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, role?: string) => Promise<boolean>;
   register: (userData: any) => Promise<void>;
   logout: () => void;
 };
@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   token: null,
   isAuthenticated: false,
   isLoading: true,
-  login: async () => {},
+  login: async () => false,
   register: async () => {},
   logout: () => {},
 });
@@ -57,11 +57,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserProfile = async (authToken: string) => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/users/me", {
+      const baseUrl = import.meta.env.DEV ? "/api/v1" : "http://192.168.1.7:8000/api/v1";
+      const res = await fetch(`${baseUrl}/users/me-simple`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
-        credentials: "include",
+        credentials: "omit",
       });
 
       if (res.ok) {
@@ -81,11 +82,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, role?: string) => {
     try {
       setIsLoading(true);
-      const res = await apiRequest("POST", "/api/auth/login", { username, password });
+      const res = await apiRequest("POST", "/auth/login-json", { username, password });
       const data = await res.json();
+      
+      // Check if user role matches expected role (if specified)
+      if (role && data.user.role !== role) {
+        toast({
+          title: "Access Denied",
+          description: `This login is for ${role}s only. Please use the correct login page.`,
+          variant: "destructive",
+        });
+        return false;
+      }
       
       localStorage.setItem("token", data.token);
       setToken(data.token);
@@ -99,11 +110,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         navigate("/customer");
       }
-
+      
       toast({
         title: "Login Successful",
         description: `Welcome back, ${data.user.fullName}!`,
       });
+      
+      return true;
     } catch (error) {
       console.error("Login error:", error);
       toast({
@@ -111,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Invalid username or password. Please try again.",
         variant: "destructive",
       });
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (userData: any) => {
     try {
       setIsLoading(true);
-      const res = await apiRequest("POST", "/api/auth/register", userData);
+      const res = await apiRequest("POST", "/auth/register", userData);
       const data = await res.json();
       
       localStorage.setItem("token", data.token);
@@ -151,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     // Clear all queries from the cache
     queryClient.clear();
-    navigate("/login");
+    navigate("/");
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",

@@ -1,229 +1,323 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
-import CustomerLayout from "@/components/layouts/CustomerLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Subscription, Package, Bill, UserActivity, Notification, ConnectionStat } from "@shared/schema";
-import ConnectionStats from "@/components/customer/ConnectionStats";
-import ActivityFeed from "@/components/customer/ActivityFeed";
-import NotificationsList from "@/components/customer/NotificationsList";
-import SupportOptions from "@/components/customer/SupportOptions";
-import { formatCurrency, formatDate } from "@/lib/utils/formatting";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Wifi, 
+  CreditCard, 
+  Headphones, 
+  User, 
+  Activity, 
+  TrendingUp, 
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Download,
+  Upload,
+  Zap
+} from "lucide-react";
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
   
-  // Fetch user's subscription
-  const { data: subscriptions } = useQuery<Subscription[]>({ 
-    queryKey: ['/api/subscriptions'],
-    enabled: !!user
-  });
-  
-  // Fetch internet packages
-  const { data: packages } = useQuery<Package[]>({ 
-    queryKey: ['/api/packages'],
-    enabled: !!user
-  });
-  
-  // Fetch bills
-  const { data: bills } = useQuery<Bill[]>({ 
-    queryKey: ['/api/bills'],
-    enabled: !!user
-  });
-  
-  // Fetch user activities
-  const { data: activities } = useQuery<UserActivity[]>({ 
-    queryKey: ['/api/user-activities'],
-    enabled: !!user
-  });
-  
-  // Fetch notifications
-  const { data: notifications } = useQuery<Notification[]>({ 
-    queryKey: ['/api/notifications'],
-    enabled: !!user
-  });
-  
-  // Fetch connection stats
-  const { data: connectionStats } = useQuery<ConnectionStat[]>({ 
-    queryKey: ['/api/connection-stats'],
-    enabled: !!user
-  });
-  
-  // Get user's active subscription (if any)
-  const activeSubscription = subscriptions?.find(sub => sub.status === "active");
-  
-  // Get package details for active subscription
-  const activePackage = activeSubscription 
-    ? packages?.find(pkg => pkg.id === activeSubscription.packageId) 
-    : undefined;
-  
-  // Get latest unpaid bill
-  const latestBill = bills?.filter(bill => bill.status === "unpaid")
-    .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())[0];
-  
-  // Get latest connection stat
-  const latestConnectionStat = connectionStats?.sort(
-    (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
-  )[0];
-  
-  // Limit activities and notifications for dashboard
-  const recentActivities = activities?.slice(0, 3) || [];
-  const recentNotifications = notifications?.slice(0, 3) || [];
-  
-  // Calculate days until due for the latest bill
-  const getDaysUntilDue = () => {
-    if (!latestBill) return 0;
-    
-    const dueDate = new Date(latestBill.dueDate);
-    const today = new Date();
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-  
-  const daysUntilDue = getDaysUntilDue();
+  // Mock data for demonstration
+  const connectionStatus = "active";
+  const currentSpeed = "50 Mbps";
+  const dataUsage = "75%";
+  const nextBilling = "15 Juli 2024";
+  const outstandingBill = "Rp 299.000";
   
   return (
-    <CustomerLayout>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <Helmet>
         <title>Dashboard - SEKAR NET</title>
         <meta name="description" content="SEKAR NET customer dashboard - Manage your internet subscription, billing, and support." />
       </Helmet>
       
-      {/* Greeting and User Info */}
-      <div className="mb-6 md:flex md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Welcome, {user?.fullName}</h2>
-          <p className="text-gray-600">Here's what's happening with your connection</p>
-        </div>
-      </div>
-      
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Current Package */}
-        <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Current Package</h3>
-              {activeSubscription ? (
-                <Badge className="bg-green-100 text-green-800">Active</Badge>
-              ) : (
-                <Badge className="bg-yellow-100 text-yellow-800">No Active Package</Badge>
-              )}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Selamat datang, {user?.fullName}!
+              </h1>
+              <p className="text-gray-600">
+                Kelola langganan internet Anda dengan mudah
+              </p>
             </div>
-            
-            {activePackage ? (
-              <>
-                <div className="mb-4">
-                  <h4 className="text-2xl font-bold text-primary">{activePackage.name}</h4>
-                  <p className="text-gray-600">{activePackage.speed} Mbps Unlimited</p>
+            <div className="flex items-center space-x-3">
+              <Badge variant={connectionStatus === "active" ? "default" : "destructive"} className="flex items-center gap-2">
+                <Wifi className="h-4 w-4" />
+                {connectionStatus === "active" ? "Terhubung" : "Terputus"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Current Speed */}
+          <Card className="bg-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Kecepatan Saat Ini</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentSpeed}</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Next billing date</p>
-                    <p className="font-medium">
-                      {activeSubscription && activeSubscription.endDate 
-                        ? formatDate(new Date(activeSubscription.endDate))
-                        : "Not available"}
-                    </p>
-                  </div>
+                <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Zap className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Usage */}
+          <Card className="bg-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Penggunaan Data</p>
+                  <p className="text-2xl font-bold text-gray-900">{dataUsage}</p>
+                </div>
+                <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Activity className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Next Billing */}
+          <Card className="bg-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Tagihan Berikutnya</p>
+                  <p className="text-2xl font-bold text-gray-900">{nextBilling}</p>
+                </div>
+                <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Outstanding Bill */}
+          <Card className="bg-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Tagihan Tertunda</p>
+                  <p className="text-2xl font-bold text-gray-900">{outstandingBill}</p>
+                </div>
+                <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertCircle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Package & Billing */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Current Package */}
+            <Card className="bg-white border-0 shadow-xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                  <Wifi className="h-5 w-5 text-blue-600" />
+                  Paket Internet Aktif
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+                   <div className="flex items-center justify-between mb-4">
+                     <div>
+                       <h3 className="text-2xl font-bold text-white drop-shadow-sm">SEKAR NET Pro</h3>
+                       <p className="text-white font-semibold drop-shadow-sm">50 Mbps Unlimited</p>
+                     </div>
+                     <Badge variant="secondary" className="bg-white/30 text-white border-white/50 font-medium">
+                       Aktif
+                     </Badge>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4 text-sm">
+                     <div>
+                       <p className="text-white font-semibold drop-shadow-sm">Download</p>
+                       <p className="font-bold text-white text-lg drop-shadow-sm">50 Mbps</p>
+                     </div>
+                     <div>
+                       <p className="text-white font-semibold drop-shadow-sm">Upload</p>
+                       <p className="font-bold text-white text-lg drop-shadow-sm">20 Mbps</p>
+                     </div>
+                   </div>
+                 </div>
+                                 <div className="mt-4 flex gap-3">
+                   <Button className="flex-1" variant="outline">
+                     Upgrade Paket
+                   </Button>
+                   <Button className="flex-1" variant="outline">
+                     Riwayat Penggunaan
+                   </Button>
+                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card className="bg-white border-0 shadow-xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                  <Activity className="h-5 w-5 text-green-600" />
+                  Aktivitas Terbaru
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    { time: "2 menit yang lalu", activity: "Pembayaran tagihan berhasil", status: "success" },
+                    { time: "1 jam yang lalu", activity: "Kecepatan internet diperbarui", status: "info" },
+                    { time: "3 jam yang lalu", activity: "Tiket dukungan ditutup", status: "success" },
+                    { time: "1 hari yang lalu", activity: "Tagihan baru tersedia", status: "warning" }
+                  ].map((item, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                      <div className={`h-2 w-2 rounded-full ${
+                        item.status === "success" ? "bg-green-500" :
+                        item.status === "warning" ? "bg-yellow-500" : "bg-blue-500"
+                      }`} />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{item.activity}</p>
+                        <p className="text-sm text-gray-500">{item.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Quick Actions & Profile */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card className="bg-white border-0 shadow-xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                  <Zap className="h-5 w-5 text-yellow-600" />
+                  Akses Cepat
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
                   <Button 
-                    variant="outline"
-                    className="px-3 py-1 rounded-lg bg-blue-50 text-primary text-sm font-medium hover:bg-blue-100"
-                    onClick={() => navigate("/customer/packages")}
+                    className="w-full justify-start" 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.location.href = '/customer/billing'}
                   >
-                    Upgrade
+                    <CreditCard className="h-4 w-4 mr-3" />
+                    Bayar Tagihan
+                  </Button>
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.location.href = '/customer/support'}
+                  >
+                    <Headphones className="h-4 w-4 mr-3" />
+                    Dukungan Teknis
+                  </Button>
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.location.href = '/customer/billing'}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-3" />
+                    Riwayat Tagihan
+                  </Button>
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.location.href = '/customer/profile'}
+                  >
+                    <User className="h-4 w-4 mr-3" />
+                    Edit Profil
                   </Button>
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-gray-500 mb-4">You don't have an active package</p>
-                <Button 
-                  variant="default"
-                  onClick={() => navigate("/customer/packages")}
-                >
-                  Browse Packages
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Payment Status */}
-        <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Payment Status</h3>
-              
-              {latestBill ? (
-                latestBill.status === "paid" ? (
-                  <Badge className="bg-green-100 text-green-800">Paid</Badge>
-                ) : (
-                  <Badge className={daysUntilDue > 3 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}>
-                    {daysUntilDue > 0 ? `Due in ${daysUntilDue} days` : "Due today"}
-                  </Badge>
-                )
-              ) : (
-                <Badge className="bg-gray-100 text-gray-800">No Bills</Badge>
-              )}
-            </div>
-            
-            {latestBill ? (
-              <>
-                <div className="mb-4">
-                  <h4 className="text-2xl font-bold text-gray-800">{formatCurrency(latestBill.amount)}</h4>
-                  <p className="text-gray-600">For {latestBill.period}</p>
+            {/* Profile Summary */}
+            <Card className="bg-white border-0 shadow-xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-purple-600" />
+                  Informasi Akun
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      {user?.fullName?.charAt(0) || "U"}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{user?.fullName}</p>
+                      <p className="text-sm text-gray-500">{user?.email}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Nomor Telepon:</span>
+                      <span className="font-medium">{user?.phone || "Belum diatur"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Alamat:</span>
+                      <span className="font-medium">{user?.address || "Belum diatur"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <Badge variant="default" className="bg-green-100 text-green-800">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Aktif
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                
-                <Button 
-                  className="w-full"
-                  variant={latestBill.status === "paid" ? "outline" : "default"}
-                  onClick={() => navigate("/customer/billing")}
-                >
-                  {latestBill.status === "paid" ? "View Invoices" : "Pay Now"}
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-gray-500 mb-4">No bills available</p>
-                <Button 
-                  variant="outline"
-                  onClick={() => navigate("/customer/billing")}
-                >
-                  View Billing History
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Connection Status */}
-        <ConnectionStats 
-          connectionStats={latestConnectionStat} 
-          subscribedSpeed={activePackage?.speed} 
-        />
+            {/* Connection Status */}
+            <Card className="bg-white border-0 shadow-xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                  <Wifi className="h-5 w-5 text-green-600" />
+                  Status Koneksi
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      Terhubung
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">IP Address:</span>
+                    <span className="font-mono text-sm">192.168.1.100</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Uptime:</span>
+                    <span className="font-medium">99.9%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-
-      {/* Recent Activity and Notifications */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Recent Activity */}
-        <ActivityFeed 
-          activities={recentActivities} 
-          onViewAllActivities={() => navigate("/customer/profile")} 
-        />
-
-        {/* Notifications */}
-        <NotificationsList notifications={recentNotifications} />
-      </div>
-
-      {/* Support Section */}
-      <SupportOptions onNavigateToSupport={() => navigate("/customer/support")} />
-    </CustomerLayout>
+    </div>
   );
-}
+} 

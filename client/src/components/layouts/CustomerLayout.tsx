@@ -87,14 +87,14 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
               {navItems.map((item) => (
                 <Link key={item.path} href={item.path}>
                   <a
-                    className={`flex items-center px-3 py-2 rounded-lg ${
+                    className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${
                       location === item.path
-                        ? "bg-blue-50 text-primary font-medium"
-                        : "text-gray-700 hover:bg-blue-50 hover:text-primary font-medium"
+                        ? "bg-blue-50 text-primary font-medium shadow-sm"
+                        : "text-gray-700 hover:bg-blue-50 hover:text-primary font-medium hover:shadow-sm"
                     }`}
                     onClick={isMobile ? toggleMobileMenu : undefined}
                   >
-                    <i className={`${item.icon} mr-3 text-lg`}></i>
+                    <i className={`${item.icon} mr-3 text-lg transition-transform duration-200 group-hover:scale-110`}></i>
                     {item.name}
                   </a>
                 </Link>

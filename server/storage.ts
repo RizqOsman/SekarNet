@@ -9,7 +9,7 @@ import { technicianJobs, type TechnicianJob, type InsertTechnicianJob } from "@s
 import { userActivities, type UserActivity, type InsertUserActivity } from "@shared/schema";
 import { connectionStats, type ConnectionStat, type InsertConnectionStat } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -313,8 +313,8 @@ export class DatabaseStorage implements IStorage {
       .from(notifications)
       .where(
         and(
-          notifications.userId.isNull(),
-          notifications.targetRole.isNull()
+          isNull(notifications.userId),
+          isNull(notifications.targetRole)
         )
       );
 
@@ -405,12 +405,16 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(connectionStats)
       .where(eq(connectionStats.userId, userId))
-      .orderBy(desc(connectionStats.recordedAt));
+      .orderBy(desc(connectionStats.timestamp));
   }
 
   async createConnectionStat(stat: InsertConnectionStat): Promise<ConnectionStat> {
     const [createdStat] = await db.insert(connectionStats).values(stat).returning();
     return createdStat;
+  }
+
+  async getAllConnectionStats(): Promise<ConnectionStat[]> {
+    return await db.select().from(connectionStats).orderBy(desc(connectionStats.timestamp));
   }
 }
 

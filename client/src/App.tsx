@@ -5,8 +5,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 
+// Public pages
+import Dashboard from "@/pages/Dashboard";
+
 // Auth pages
-import Login from "@/pages/auth/Login";
+import SelectRole from "@/pages/auth/SelectRole";
+import CustomerLogin from "@/pages/auth/CustomerLogin";
+import TechnicianLogin from "@/pages/auth/TechnicianLogin";
+import AdminLogin from "@/pages/auth/AdminLogin";
+import CustomerRegister from "@/pages/auth/CustomerRegister";
 import Register from "@/pages/auth/Register";
 
 // Customer pages
@@ -37,9 +44,15 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
+      {/* Public Routes */}
+      <Route path="/" component={Dashboard} />
+      
       {/* Auth Routes */}
-      <Route path="/" component={Login} />
-      <Route path="/login" component={Login} />
+      <Route path="/auth/select-role" component={SelectRole} />
+      <Route path="/auth/customer/login" component={CustomerLogin} />
+      <Route path="/auth/technician/login" component={TechnicianLogin} />
+      <Route path="/auth/admin/login" component={AdminLogin} />
+      <Route path="/auth/customer/register" component={CustomerRegister} />
       <Route path="/register" component={Register} />
       
       {/* Customer Routes */}

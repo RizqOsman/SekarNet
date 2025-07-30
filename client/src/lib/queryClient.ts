@@ -12,11 +12,15 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  // Use proxy in development, direct URL in production
+  const baseUrl = import.meta.env.DEV ? "/api/v1" : "http://192.168.1.7:8000/api/v1";
+  const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
+  
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "omit",  // Don't send credentials to avoid CORS issues
   });
 
   await throwIfResNotOk(res);
@@ -29,8 +33,13 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
+    // Use proxy in development, direct URL in production
+    const baseUrl = import.meta.env.DEV ? "/api/v1" : "http://192.168.1.7:8000/api/v1";
+    const url = queryKey[0] as string;
+    const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
+    
+    const res = await fetch(fullUrl, {
+      credentials: "omit",  // Don't send credentials to avoid CORS issues
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
