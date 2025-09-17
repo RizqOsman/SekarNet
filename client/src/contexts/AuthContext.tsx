@@ -44,7 +44,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
       setToken(storedToken);
@@ -136,16 +135,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await apiRequest("POST", "/auth/register", userData);
       const data = await res.json();
       
-      localStorage.setItem("token", data.token);
-      setToken(data.token);
-      setUser(data.user);
+      // We're no longer logging in automatically after registration
+      // Instead of storing token and redirecting to dashboard,
+      // we'll just show success message and redirect will be handled in the register component
       
-      // Navigate to customer dashboard
-      navigate("/customer");
-
       toast({
         title: "Registration Successful",
-        description: "Your account has been created successfully.",
+        description: "Your account has been created successfully. Please login.",
       });
     } catch (error) {
       console.error("Registration error:", error);

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Setup FastAPI database with sample data
-"""
 import os
 import sys
 from pathlib import Path
@@ -11,7 +8,7 @@ sys.path.append(str(Path(__file__).parent / "app"))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.db.base import Base
+from app.db.base_models import Base
 from app.models.user import User
 from app.core.security import get_password_hash
 from app.core.config import settings

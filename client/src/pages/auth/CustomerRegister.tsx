@@ -64,7 +64,8 @@ export default function CustomerRegister() {
       };
 
       await register(userData);
-      setLocation("/customer/dashboard");
+      // Redirect to customer login page with success message
+      setLocation("/auth/customer/login?registered=success");
     } catch (err) {
       setError("Registration failed. Please try again.");
     } finally {

@@ -34,7 +34,7 @@ class TicketReply(BaseModel):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Support Ticket schemas
@@ -94,7 +94,7 @@ class SupportTicket(BaseModel):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Expanded ticket with user, technician, and replies

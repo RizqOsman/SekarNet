@@ -5,7 +5,15 @@ from jose import jwt, JWTError
 from pydantic import ValidationError
 
 from ...core.config import settings
-from ...core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
+from ...core.security import (
+    create_access_token, 
+    create_refresh_token, 
+    verify_password, 
+    get_password_hash,
+    validate_password,
+    validate_password_strength,
+    csrf_protect
+)
 from ...db.session import get_db
 from ...models.user import User
 from ...schemas.token import Token, TokenPayload
@@ -171,10 +179,21 @@ def refresh_token(
 def register_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
+    _csrf: bool = Depends(csrf_protect)
 ):
     """
-    Register a new user
+    Register a new user with CSRF protection and password validation
     """
+    # Validate password strength
+    password_check = validate_password_strength(user_in.password)
+    if password_check["strength"] in ["very weak", "weak"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Password is too weak",
+                "feedback": password_check["feedback"]
+            }
+        )
     # Check if username already exists
     existing_user = db.query(User).filter(User.username == user_in.username).first()
     if existing_user:

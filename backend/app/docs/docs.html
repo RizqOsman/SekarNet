@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEKAR NET API Documentation</title>
+    <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        elements-api {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <elements-api
+      apiDescriptionUrl="/api/v1/openapi.json"
+      router="hash"
+      layout="sidebar"
+    />
+</body>
+</html>

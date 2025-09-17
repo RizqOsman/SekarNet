@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, String, Integer, Float, DateTime, Text
 from sqlalchemy.sql import func
 
-from ..db.base import Base
+from ..db.base_class import Base
 
 class Package(Base):
     __tablename__ = "packages"

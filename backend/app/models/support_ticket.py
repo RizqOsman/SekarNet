@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 
-from ..db.base import Base
+from ..db.base_class import Base
 
 class TicketStatus(str, enum.Enum):
     OPEN = "open"

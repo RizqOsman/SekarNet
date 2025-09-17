@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
-import { Eye, EyeOff, User, Lock, ArrowLeft, Wifi, Loader2 } from "lucide-react";
+import { Eye, EyeOff, User, Lock, ArrowLeft, Wifi, Loader2, CheckCircle } from "lucide-react";
 
 export default function CustomerLogin() {
   const [username, setUsername] = useState("");
@@ -15,8 +15,17 @@ export default function CustomerLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const { login } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  
+  // Check for registration success parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registered') === 'success') {
+      setRegistrationSuccess(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +96,13 @@ export default function CustomerLogin() {
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {registrationSuccess && (
+                  <Alert className="bg-green-50 border-green-200 mb-4">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                    <AlertDescription className="text-green-700">Registrasi berhasil! Silakan login dengan akun baru Anda.</AlertDescription>
+                  </Alert>
+                )}
+                
                 {error && (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>

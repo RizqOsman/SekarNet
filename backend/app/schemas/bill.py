@@ -74,7 +74,7 @@ class Bill(BaseModel):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Bill with expanded subscription and user details

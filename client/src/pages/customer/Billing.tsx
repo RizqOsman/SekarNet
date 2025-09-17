@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   CreditCard, 
   Calendar, 
@@ -11,41 +12,18 @@ import {
   AlertCircle,
   Download,
   Eye,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useRealtimeBills } from "@/hooks/use-realtime-bills";
 
 export default function CustomerBilling() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   
-  // Mock billing data
-  const bills = [
-    {
-      id: 1,
-      period: "Juli 2024",
-      amount: 299000,
-      dueDate: "2024-07-15",
-      status: "unpaid",
-      description: "SEKAR NET Pro - 50 Mbps Unlimited"
-    },
-    {
-      id: 2,
-      period: "Juni 2024",
-      amount: 299000,
-      dueDate: "2024-06-15",
-      status: "paid",
-      description: "SEKAR NET Pro - 50 Mbps Unlimited"
-    },
-    {
-      id: 3,
-      period: "Mei 2024",
-      amount: 299000,
-      dueDate: "2024-05-15",
-      status: "paid",
-      description: "SEKAR NET Pro - 50 Mbps Unlimited"
-    }
-  ];
+  // Use the realtime bills hook
+  const { bills, isLoading, error } = useRealtimeBills();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -70,7 +48,8 @@ export default function CustomerBilling() {
     }
   };
 
-  const unpaidBills = bills.filter(bill => bill.status === 'unpaid');
+  // Calculate stats only if bills are loaded
+  const unpaidBills = isLoading || !bills ? [] : bills.filter(bill => bill.status === 'unpaid');
   const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amount, 0);
 
   return (
@@ -96,6 +75,19 @@ export default function CustomerBilling() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Tagihan & Pembayaran</h1>
               <p className="text-gray-600">Kelola tagihan internet Anda dengan mudah</p>
+            </div>
+            <div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  // This will trigger a refetch using React Query
+                  window.location.reload();
+                }}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
             </div>
           </div>
         </div>
@@ -180,43 +172,83 @@ export default function CustomerBilling() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {bills.map((bill) => (
-                <div key={bill.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-semibold text-gray-900">{bill.period}</h4>
-                      {getStatusBadge(bill.status)}
+            {isLoading ? (
+              // Loading state
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                    <div className="flex-1">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-48 mb-1" />
+                      <Skeleton className="h-4 w-36" />
                     </div>
-                    <p className="text-gray-600 text-sm mb-1">{bill.description}</p>
-                    <p className="text-gray-500 text-sm">Jatuh tempo: {formatDate(bill.dueDate)}</p>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-6 w-24" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-9 w-20" />
+                        <Skeleton className="h-9 w-20" />
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(bill.amount)}</p>
+                ))}
+              </div>
+            ) : error ? (
+              // Error state
+              <div className="p-6 text-center">
+                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Gagal memuat data</h3>
+                <p className="text-gray-600 mb-4">Terjadi kesalahan saat memuat data tagihan Anda.</p>
+                <Button onClick={() => window.location.reload()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Coba Lagi
+                </Button>
+              </div>
+            ) : bills.length === 0 ? (
+              // Empty state
+              <div className="p-6 text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Tidak Ada Tagihan</h3>
+                <p className="text-gray-600">Anda tidak memiliki tagihan saat ini.</p>
+              </div>
+            ) : (
+              // Bills list
+              <div className="space-y-4">
+                {bills.map((bill) => (
+                  <div key={bill.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900">{bill.period}</h4>
+                        {getStatusBadge(bill.status)}
+                      </div>
+                      <p className="text-gray-600 text-sm mb-1">{bill.description}</p>
+                      <p className="text-gray-500 text-sm">Jatuh tempo: {formatDate(bill.dueDate)}</p>
                     </div>
                     
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Detail
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-1" />
-                        Unduh
-                      </Button>
-                      {bill.status === 'unpaid' && (
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                          <CreditCard className="h-4 w-4 mr-1" />
-                          Bayar
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-gray-900">{formatCurrency(bill.amount)}</p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
                         </Button>
-                      )}
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-1" />
+                          Unduh
+                        </Button>
+                        {bill.status === 'unpaid' && (
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            <CreditCard className="h-4 w-4 mr-1" />
+                            Bayar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

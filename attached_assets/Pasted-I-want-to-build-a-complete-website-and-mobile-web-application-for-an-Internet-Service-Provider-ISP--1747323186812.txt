@@ -61,7 +61,7 @@ I want to build a complete website and mobile web application for an Internet Se
 
 8. **Bonus Features**
    - Internet speed test integration
-   - Coverage map using Google Maps API
+   - Coverage map using Open Street Map
    - Referral system (optional)
    - Reports exportable to Excel or PDF
 
@@ -74,7 +74,6 @@ I want to build a complete website and mobile web application for an Internet Se
 - **Notifications:** Push Notification API or SMTP (for email)
 - **Storage:** Local or Cloudinary for images
 - **Invoice PDF:** xhtml2pdf or WeasyPrint
-- **Deployment:** Manual (via Replit) or Uvicorn + Gunicorn
 
 ---
 
